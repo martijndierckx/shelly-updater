@@ -3,36 +3,31 @@ const ip = require('ip');
 const mdns = require('multicast-dns')();
 const express = require('express');
 
-const firmwares = [];
-
-// Utils
-const fwv = (s) => {
-  return parseInt(s.substring(0, 15).replace('-', ''), 10);
-};
-const getFW = async (type) => {
-  if (!firmwares[type].fw) {
-    const fw = await fetch(firmwares[type].url);
-    firmwares[type].fw = await fw.arrayBuffer();
-  }
-
-  return firmwares[type];
-};
-
 (async () => {
+  const firmwares = {};
+
+  // Utils
+  const fwv = (s) => {
+    return parseInt(s.substring(0, 15).replace('-', ''), 10);
+  };
+  const getFW = async (type) => {
+    if (!firmwares[type].fw) {
+      const fw = await fetch(firmwares[type].url);
+      firmwares[type].fwFileName = firmwares[type].url.substring(firmwares[type].url.lastIndexOf('/') + 1);
+      firmwares[type].fw = Buffer.from(await fw.arrayBuffer());
+    }
+
+    return firmwares[type];
+  };
+
   // Ip
   const listeningIp = process.env.SHELLY_UPDATE_IP ?? ip.address();
 
   // Port
   const listeningPort = process.env.SHELLY_UPDATE_PORT ?? 3366;
 
-  // Setup express
-  const app = express();
-  app.get('/fw/:device', (req, res) => {
-    const device = req.params.device;
-    const fw = Buffer.from(firmwares[device].fw);
-    res.send(fw);
-  });
-  app.listen(listeningPort);
+  // Shelly auth
+  const shellyAuth = process.env.SHELLY_UPDATE_AUTH ? process.env.SHELLY_UPDATE_AUTH + '@' : '';
 
   // Get Shelly FW list
   const fwResp = await fetch(`https://api.shelly.cloud/files/firmware`);
@@ -47,9 +42,6 @@ const getFW = async (type) => {
       vName: fw.version
     };
   }
-
-  // Shelly auth
-  const shellyAuth = process.env.SHELLY_UPDATE_AUTH ? process.env.SHELLY_UPDATE_AUTH + '@' : '';
 
   // Initiate mDNS discovery
   const shellies = [];
@@ -79,7 +71,7 @@ const getFW = async (type) => {
             console.log(`Initiating update on ${shellyIp} from ${json.fw} to ${fw.vName}`);
 
             // Initiate FW update
-            await fetch(`http://${shellyAuth}${shellyIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${json.type}`);
+            await fetch(`http://${shellyAuth}${shellyIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${fw.fwFileName}`);
           }
         }
       }
@@ -87,4 +79,21 @@ const getFW = async (type) => {
       console.error(`Couldn't process/update shelly:\n${e}`);
     }
   });
+
+  // Setup express
+  const app = express();
+  app.get('/fw/:file', (req, res) => {
+    const file = req.params.file;
+    const fws = Object.values(firmwares);
+    const fw = fws.find((x) => {
+      return x.fwFileName == file;
+    });
+
+    if (fw) {
+      res.send(fw.fw);
+    } else {
+      res.sendStatus(404);
+    }
+  });
+  app.listen(listeningPort);
 })();
