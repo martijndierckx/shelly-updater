@@ -1,6 +1,8 @@
-# Shelly Updater Docker image
+# Shelly Offline Updater Docker image
 
-Run the following docker compose config once in a while to update all your Shelly devices to the latest firmware. 
+When you are running your shellies in a separate VLAN without any internet access, but still want them to be updated once in a while, you can use this Docker image to achieve that.
+
+Run it on a Docker host with internet access which is also reachable by the Shellies.
 
 ```
 version: '3'
@@ -16,4 +18,4 @@ services:
     - "3360:3360"
 ```
 
-This docker image is not intended to being kept running 24/7. But more as an ad-hoc update script.
+This Docker image is not intended to run 24/7. But more as an ad-hoc update script. So make sure you stop the container/stack after updating.
