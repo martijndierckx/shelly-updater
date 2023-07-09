@@ -22,4 +22,4 @@ services:
 This Docker image is not intended to run 24/7. But more as an ad-hoc update script. So make sure you stop the container/stack after updating.
 
 ### Credits
-Based of [Benedict's work](https://github.com/bjuretko/shelly-offline-ota-update)
+Based on [Benedict's work](https://github.com/bjuretko/shelly-offline-ota-update)
