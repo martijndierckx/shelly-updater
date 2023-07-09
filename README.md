@@ -11,12 +11,11 @@ services:
     container_name: shelly-updater
     image: martijndierckx/shelly-updater
     restart: unless-stopped
+    network_mode: host
     #environment:
     #- SHELLY_UPDATE_IP=192.168.4.100 # Overrides the automatically detected IP where the FW files will be hosted for the Shellies to fetch
     #- SHELLY_UPDATE_PORT=3366
     #- SHELLY_UPDATE_AUTH="admin:yourpassword" # Set when your shellies are protected by a password
-    ports:
-    - "3366:3366"
 ```
 
 This Docker image is not intended to run 24/7. But more as an ad-hoc update script. So make sure you stop the container/stack after updating.
