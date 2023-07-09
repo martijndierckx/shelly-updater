@@ -52,6 +52,9 @@ const getFW = async (type) => {
     };
   }
 
+  // Shelly auth
+  const shellyAuth = process.env.SHELLY_UPDATE_AUTH + '@' ?? '';
+
   // Initiate mDNS discovery
   browser.on('ready', function () {
     browser.discover();
@@ -70,7 +73,7 @@ const getFW = async (type) => {
             shellies.push(deviceIp);
 
             // Get info from Shelly
-            const response = await fetch(`http://${deviceIp}/shelly`);
+            const response = await fetch(`http://${shellyAuth}${deviceIp}/shelly`);
             const json = await response.json();
 
             // Needs update?
@@ -84,7 +87,7 @@ const getFW = async (type) => {
               console.log(`${deviceIp} needs an update from ${json.fw} to ${fw.vName}`);
 
               // Initiate FW update
-              await fetch(`http://${deviceIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${json.type}`);
+              await fetch(`http://${shellyAuth}${deviceIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${json.type}`);
             }
           }
         }

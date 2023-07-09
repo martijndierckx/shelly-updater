@@ -7,5 +7,6 @@ services:
     #environment:
     #- SHELLY_UPDATE_IP=192.168.4.100 # Overrides the automatically detected IP where the FW files will be hosted for the Shellies to fetch
     #- SHELLY_UPDATE_PORT=3366
+    #- SHELLY_UPDATE_AUTH="admin:yourpassword" # Set when your shellies are protected by a password
     ports:
     - "3366:3366"
