@@ -7,7 +7,7 @@
   "dependencies": {
     "express": "^4.18.2",
     "ip": "^1.1.8",
-    "mdns-js": "^1.0.3",
+    "multicast-dns": "^7.2.5",
     "node-fetch": "^3.3.1"
   },
   "scripts": {

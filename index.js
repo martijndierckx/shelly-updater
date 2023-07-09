@@ -1,11 +1,7 @@
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 const ip = require('ip');
-const mdns = require('mdns-js');
-const dns = require('dns');
-const { lookup } = dns.promises;
+const mdns = require('multicast-dns')();
 const express = require('express');
-const browser = mdns.createBrowser();
-const discoveredShellyHosts = [];
 
 const firmwares = [];
 
@@ -53,42 +49,37 @@ const getFW = async (type) => {
   }
 
   // Shelly auth
-  const shellyAuth = process.env.SHELLY_UPDATE_AUTH + '@' ?? '';
+  const shellyAuth = process.env.SHELLY_UPDATE_AUTH ? process.env.SHELLY_UPDATE_AUTH + '@' : '';
 
   // Initiate mDNS discovery
-  browser.on('ready', function () {
-    browser.discover();
-  });
-
-  // Capture discovered Shellies
   const shellies = [];
-  browser.on('update', async (data) => {
+  console.log(`Waiting for shellies to appear ...`);
+  mdns.on('response', async (response) => {
     try {
-      if (data.txt && data.txt[0] && data.txt[0].startsWith('id=shelly')) {
-        if (discoveredShellyHosts.indexOf(data.host) < 0) {
-          const deviceIp = (await lookup(data.host)).address;
+      // Found Shelly?
+      const shelly = response.answers.find((v) => v.name.includes('shelly') && v.type === 'A');
+      if (shelly) {
+        const shellyIp = shelly.data;
+        // Only handle each shelly once
+        if (shellies.indexOf(shellyIp) < 0) {
+          shellies.push(shellyIp);
 
-          // Only handle each shelly once
-          if (shellies.indexOf(deviceIp) < 0) {
-            shellies.push(deviceIp);
+          // Get info from Shelly
+          const response = await fetch(`http://${shellyAuth}${shellyIp}/shelly`);
+          const json = await response.json();
 
-            // Get info from Shelly
-            const response = await fetch(`http://${shellyAuth}${deviceIp}/shelly`);
-            const json = await response.json();
+          // Needs update?
+          const deviceVersion = fwv(json.fw);
+          const newestVersion = firmwares[json.type].v;
+          if (deviceVersion < newestVersion) {
+            // Get FW
+            const fw = await getFW(json.type);
 
-            // Needs update?
-            const deviceVersion = fwv(json.fw);
-            const newestVersion = firmwares[json.type].v;
-            if (deviceVersion < newestVersion) {
-              // Get FW
-              const fw = await getFW(json.type);
+            // Log
+            console.log(`Initiating update on ${shellyIp} from ${json.fw} to ${fw.vName}`);
 
-              // Log
-              console.log(`${deviceIp} needs an update from ${json.fw} to ${fw.vName}`);
-
-              // Initiate FW update
-              await fetch(`http://${shellyAuth}${deviceIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${json.type}`);
-            }
+            // Initiate FW update
+            await fetch(`http://${shellyAuth}${shellyIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${json.type}`);
           }
         }
       }
