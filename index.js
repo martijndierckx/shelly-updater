@@ -49,29 +49,47 @@ const express = require('express');
   mdns.on('response', async (response) => {
     try {
       // Found Shelly?
-      const shelly = response.answers.find((v) => v.name.includes('shelly') && v.type === 'A');
+      const shelly = response.answers.find((v) => v.name.toLowerCase().includes('shelly') && v.type === 'A');
       if (shelly) {
         const shellyIp = shelly.data;
         // Only handle each shelly once
         if (shellies.indexOf(shellyIp) < 0) {
           shellies.push(shellyIp);
 
+          // Log
+          console.log(`Detected shelly on ${shellyIp}`);
+
           // Get info from Shelly
           const response = await fetch(`http://${shellyAuth}${shellyIp}/shelly`);
           const json = await response.json();
 
-          // Needs update?
-          const deviceVersion = fwv(json.fw);
-          const newestVersion = firmwares[json.type].v;
-          if (deviceVersion < newestVersion) {
-            // Get FW
-            const fw = await getFW(json.type);
+          // Detect generation
+          let gen = 1;
+          if (json.gen) {
+            gen = 2;
+          }
 
-            // Log
-            console.log(`Initiating update on ${shellyIp} from ${json.fw} to ${fw.vName}`);
+          if (gen == 1) {
+            // Needs update?
+            const deviceVersion = fwv(json.fw);
+            const newestVersion = firmwares[json.type].v;
+            if (deviceVersion < newestVersion) {
+              // Get FW
+              const fw = await getFW(json.type);
 
-            // Initiate FW update
-            await fetch(`http://${shellyAuth}${shellyIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${fw.fwFileName}`);
+              // Log
+              console.log(`Initiating update on ${shellyIp} from ${json.fw} to ${fw.vName}`);
+
+              // Initiate FW update
+              await fetch(`http://${shellyAuth}${shellyIp}/ota?url=http://${listeningIp}:${listeningPort}/fw/${fw.fwFileName}`);
+            }
+            else {
+              console.log(`Shelly ${shellyIp} doesn't need to be updated. Current version: ${json.fw}`);
+            }
+          } else {
+            // Try an online update
+            console.log(`Attempting online update on gen${gen} ${shellyIp}`);
+            await fetch(`http://${shellyAuth}${shellyIp}/ota?update=true`);
           }
         }
       }
